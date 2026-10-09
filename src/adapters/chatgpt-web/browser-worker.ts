@@ -4288,6 +4288,15 @@ export class ChatGptBrowserWorker {
       // render a completed commentary Markdown root immediately before that live status container.
       // Final-answer Markdown follows the live status instead, so DOM order remains the semantic
       // boundary without relying on localized labels such as "Pro thinking".
+      // Compare getAttribute. A CSS attribute-value selector matches the wrong node in the DOM harness.
+      const nearestAttribute = (element: HTMLElement, name: string): string | null => {
+        for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+          const value = node.getAttribute(name);
+          if (value !== null) return value;
+          if (node === root) break;
+        }
+        return null;
+      };
       const hasAttributeValue = (element: HTMLElement, name: string, value: string): boolean => {
         if (element.getAttribute(name) === value) return true;
         const found = element.querySelectorAll<HTMLElement>(`[${name}]`);
@@ -4296,25 +4305,28 @@ export class ChatGptBrowserWorker {
         }
         return false;
       };
+      const turnIsAssistant = root.getAttribute("data-turn") === "assistant"
+        || root.getAttribute("data-message-author-role") === "assistant"
+        || root.getAttribute("data-conversation-role") === "assistant";
       const allMarkdownRoots = [...root.querySelectorAll<HTMLElement>(answerRootSelector)]
         .filter(candidate => {
           // The user prompt shares this turn group. Its markdown is never the answer.
           if (candidate.closest("[data-user-message-bubble]")) return false;
+          const author = nearestAttribute(candidate, "data-message-author-role");
+          const role = nearestAttribute(candidate, "data-conversation-role");
+          if (author === "user" || role === "user") return false;
           if (!root.hasAttribute("data-turn-key") && !candidate.hasAttribute("data-markdown-text-style")) return true;
           const unit = candidate.closest<HTMLElement>("[data-content-search-unit-key]");
           if (unit) {
-            // The assistant role is not always a direct child of the search unit. Requiring
-            // that dropped every answer node: visible text stayed empty, so the rendered
-            // completion button after those nodes was ignored and the turn was retired.
+            // The assistant role may be nested inside the search unit, not a direct child.
+            // A direct-child requirement dropped the answer, so the completion button after it
+            // was ignored and the turn was retired with empty visible text.
             return hasAttributeValue(unit, "data-conversation-role", "assistant");
           }
           if (activityContainers.some(container => container.contains(candidate))) return true;
-          // Current turns also render the answer directly in the assistant group, beside the
-          // completion control, with no search unit around it.
-          return root.getAttribute("data-turn") === "assistant"
-            || root.getAttribute("data-message-author-role") === "assistant"
-            || hasAttributeValue(root, "data-conversation-role", "assistant")
-            || hasAttributeValue(root, "data-message-author-role", "assistant");
+          // Answer markup can sit in the assistant turn with no search unit. Ownership has to be
+          // this node or the turn root; another assistant node in the turn does not qualify it.
+          return author === "assistant" || role === "assistant" || turnIsAssistant;
         })
         .filter(candidate => !candidate.parentElement?.closest(answerRootSelector))
         .filter(renderedInDom);

@@ -285,14 +285,16 @@ test("wrapped assistant role and ungrouped answer markdown still complete the tu
   expect(nested.visibleText).not.toContain("USER CONTENT");
   expect(nested.completionActionVisible).toBeTrue();
 
-  const noUnit = `<section id="turn" data-turn-key="live">
-    <div data-conversation-role="assistant"></div>
-    <div data-user-message-bubble="true"><div class="markdown"><p>USER CONTENT</p></div></div>
+  const noUnit = `<section id="turn" data-turn="assistant" data-turn-key="live">
+    <div data-message-author-role="user"><div class="markdown"><p>USER CONTENT</p></div></div>
+    <div data-conversation-role="user"><div class="markdown"><p>SECOND USER</p></div></div>
     <div class="markdown"><p>Ungrouped answer.</p></div>
     <div class="turn-action-controls"><button>Copy</button></div>
   </section>`;
   const loose = await snapshot(noUnit);
   expect(loose.visibleText).toBe("Ungrouped answer.");
+  expect(loose.visibleText).not.toContain("USER CONTENT");
+  expect(loose.visibleText).not.toContain("SECOND USER");
   expect(loose.completionActionVisible).toBeTrue();
   const tracker = new ChatGptCompletionTracker();
   const state = { ...loose, running: false, currentText: loose.visibleText, currentHtml: loose.fullHtml };
@@ -300,11 +302,12 @@ test("wrapped assistant role and ungrouped answer markdown still complete the tu
   expect(tracker.update(state, 1)).toBeFalse();
   expect(tracker.update(state, 1 + CHATGPT_COMPLETION_SETTLE_MS)).toBeTrue();
 
-  const userOnly = `<section id="turn" data-turn-key="live">
-    <div data-user-message-bubble="true"><div class="markdown"><p>USER CONTENT</p></div></div>
+  const userOwned = `<section id="turn" data-turn-key="live">
+    <div data-message-author-role="user"><div class="markdown"><p>USER CONTENT</p></div></div>
+    <div data-conversation-role="assistant"></div>
     <div class="turn-action-controls"><button>Copy</button></div>
   </section>`;
-  const user = await snapshot(userOnly);
+  const user = await snapshot(userOwned);
   expect(user.visibleText).toBe("");
   expect(user.completionActionVisible).toBeFalse();
 });
