@@ -4297,14 +4297,6 @@ export class ChatGptBrowserWorker {
         }
         return null;
       };
-      const hasAttributeValue = (element: HTMLElement, name: string, value: string): boolean => {
-        if (element.getAttribute(name) === value) return true;
-        const found = element.querySelectorAll<HTMLElement>(`[${name}]`);
-        for (let index = 0; index < found.length; index += 1) {
-          if (found[index]!.getAttribute(name) === value) return true;
-        }
-        return false;
-      };
       const turnIsAssistant = root.getAttribute("data-turn") === "assistant"
         || root.getAttribute("data-message-author-role") === "assistant"
         || root.getAttribute("data-conversation-role") === "assistant";
@@ -4318,10 +4310,14 @@ export class ChatGptBrowserWorker {
           if (!root.hasAttribute("data-turn-key") && !candidate.hasAttribute("data-markdown-text-style")) return true;
           const unit = candidate.closest<HTMLElement>("[data-content-search-unit-key]");
           if (unit) {
-            // The assistant role may be nested inside the search unit, not a direct child.
-            // A direct-child requirement dropped the answer, so the completion button after it
-            // was ignored and the turn was retired with empty visible text.
-            return hasAttributeValue(unit, "data-conversation-role", "assistant");
+            // Only a role in this unit counts. A role inside a nested unit must not qualify
+            // the outer unit, and markdown before the role is not part of that message.
+            if (unit.getAttribute("data-conversation-role") === "assistant") return true;
+            const roles = [...unit.querySelectorAll<HTMLElement>("[data-conversation-role]")]
+              .filter(node => node.getAttribute("data-conversation-role") === "assistant"
+                && node.closest("[data-content-search-unit-key]") === unit);
+            return roles.some(roleNode => roleNode.contains(candidate)
+              || Boolean(roleNode.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_FOLLOWING));
           }
           if (activityContainers.some(container => container.contains(candidate))) return true;
           // Answer markup can sit in the assistant turn with no search unit. Ownership has to be

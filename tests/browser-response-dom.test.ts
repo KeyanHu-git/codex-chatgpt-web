@@ -285,6 +285,30 @@ test("wrapped assistant role and ungrouped answer markdown still complete the tu
   expect(nested.visibleText).not.toContain("USER CONTENT");
   expect(nested.completionActionVisible).toBeTrue();
 
+  const nestedUnits = `<section id="turn" data-turn-key="live">
+    <div data-content-search-unit-key="outer">
+      <div class="markdown"><p>OUTER</p></div>
+      <div data-content-search-unit-key="inner">
+        <div><h4 data-conversation-role="assistant">ChatGPT said:</h4></div>
+        <div data-markdown-text-style="assistant-message"><p>INNER</p></div>
+      </div>
+    </div>
+  </section>`;
+  const split = await snapshot(nestedUnits);
+  expect(split.visibleText).toBe("INNER");
+
+  const sameUnit = `<section id="turn" data-turn-key="live">
+    <div data-content-search-unit-key="live:assistant">
+      <div class="markdown"><p>USER CONTENT</p></div>
+      <div><h4 data-conversation-role="assistant">ChatGPT said:</h4></div>
+      <div data-markdown-text-style="assistant-message"><p>Real answer.</p></div>
+    </div>
+    <div class="turn-action-controls"><button>Copy</button></div>
+  </section>`;
+  const beside = await snapshot(sameUnit);
+  expect(beside.visibleText).toBe("Real answer.");
+  expect(beside.completionActionVisible).toBeTrue();
+
   const noUnit = `<section id="turn" data-turn="assistant" data-turn-key="live">
     <div data-message-author-role="user"><div class="markdown"><p>USER CONTENT</p></div></div>
     <div data-conversation-role="user"><div class="markdown"><p>SECOND USER</p></div></div>
