@@ -268,10 +268,8 @@ test("captured power UI excludes the user footer during streaming and completes 
 });
 
 test("wrapped assistant role and ungrouped answer markdown still complete the turn", async () => {
-  // The ownership gate used to require data-conversation-role on a direct child of the
-  // search unit. A wrapped role, or answer markdown with no search unit, left visible
-  // text empty even though the assistant turn contained the answer and a rendered
-  // completion button. The health check then retired the turn as having no generation.
+  // A wrapped assistant role still yields the markdown after it. Markdown before that
+  // role, a nested unit's role, and user-owned markdown stay out of the answer.
   const nestedRole = `<section id="turn" data-turn-key="live">
     <div data-user-message-bubble="true"><div class="markdown"><p>USER CONTENT</p></div></div>
     <div data-content-search-unit-key="live:assistant">
